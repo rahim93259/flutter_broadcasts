@@ -14,7 +14,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   BroadcastReceiver receiver = BroadcastReceiver(
     names: <String>[
-      "de.kevlatus.flutter_broadcasts_example.demo_action",
+      "android.net.conn.CONNECTIVITY_CHANGE",
     ],
   );
 
@@ -22,7 +22,9 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     receiver.start();
-    receiver.messages.listen(print);
+    receiver.messages.listen((data){
+      print(data);
+    });
   }
 
   @override
@@ -43,30 +45,10 @@ class _MyAppState extends State<MyApp> {
             TextButton(
               child: Text('Send Broadcast'),
               onPressed: () {
-                sendBroadcast(
-                  BroadcastMessage(
-                    name: "de.kevlatus.flutter_broadcasts_example.demo_action",
-                  ),
-                );
-              },
-            ),
-            StreamBuilder<BroadcastMessage>(
-              initialData: null,
-              stream: receiver.messages,
-              builder: (context, snapshot) {
-                print(snapshot.data);
-                switch (snapshot.connectionState) {
-                  case ConnectionState.active:
-                    return Text(snapshot.data.name);
 
-                  case ConnectionState.none:
-                  case ConnectionState.done:
-                  case ConnectionState.waiting:
-                  default:
-                    return SizedBox();
-                }
               },
             ),
+
           ],
         ),
       ),

@@ -4,8 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.ConnectivityManager
 import android.util.Log
 import androidx.annotation.NonNull
+import com.google.gson.Gson
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -13,11 +15,12 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import java.io.Serializable
+import java.util.HashMap
 
 class CustomBroadcastReceiver(
-        val id: Int,
-        private val names: List<String>,
-        private val listener: (Any) -> Unit
+    val id: Int,
+    private val names: List<String>,
+    private val listener: (Any) -> Unit
 ) : BroadcastReceiver() {
     companion object {
         const val TAG: String = "CustomBroadcastReceiver"
@@ -37,11 +40,13 @@ class CustomBroadcastReceiver(
                 Pair(key, bundle.get(key))
             }
             val data = dataPairs?.toMap() ?: mapOf()
-            listener(mapOf(
-                    "receiverId" to id,
-                    "name" to it.action!!,
-                    "data" to data
-            ))
+            val map = mutableMapOf<String, Any>()
+            map.put("receiverId", id);
+            map.put("name", it.action!!);
+            map.put("data", data);
+            listener(
+                Gson().toJson(map)
+            )
         }
     }
 
@@ -83,8 +88,8 @@ class BroadcastManager(private val applicationContext: Context) {
 }
 
 class MethodCallHandlerImpl(
-        private val context: Context,
-        private val broadcastManager: BroadcastManager
+    private val context: Context,
+    private val broadcastManager: BroadcastManager
 ) : MethodCallHandler {
     companion object {
         const val TAG: String = "MethodCallHandlerImpl"
@@ -93,26 +98,26 @@ class MethodCallHandlerImpl(
     private var channel: MethodChannel? = null
 
     private fun withReceiverArgs(
-            call: MethodCall,
-            result: Result,
-            func: (id: Int, names: List<String>) -> Unit
+        call: MethodCall,
+        result: Result,
+        func: (id: Int, names: List<String>) -> Unit
     ) {
         val id = call.argument<Int>("id")
-                ?: return result.error("1", "no receiver id provided", null)
+            ?: return result.error("1", "no receiver id provided", null)
 
         val names = call.argument<List<String>>("names")
-                ?: return result.error("1", "no names provided", null)
+            ?: return result.error("1", "no names provided", null)
 
         func(id, names)
     }
 
     private fun withBroadcastArgs(
-            call: MethodCall,
-            result: Result,
-            func: (name: String, data: Map<String, Any>) -> Unit
+        call: MethodCall,
+        result: Result,
+        func: (name: String, data: Map<String, Any>) -> Unit
     ) {
         val name = call.argument<String>("name")
-                ?: return result.error("1", "no broadcast name provided", null)
+            ?: return result.error("1", "no broadcast name provided", null)
         val data = call.argument<Map<String, Any>>("data") ?: mapOf()
         func(name, data)
     }
@@ -121,6 +126,7 @@ class MethodCallHandlerImpl(
         withReceiverArgs(call, result) { id, names ->
             broadcastManager.startReceiver(CustomBroadcastReceiver(id, names) { broadcast ->
                 channel?.invokeMethod("receiveBroadcast", broadcast)
+                Log.e(TAG, "onStartReceiver:     $broadcast");
             })
             result.success(null)
         }
@@ -176,13 +182,13 @@ class MethodCallHandlerImpl(
             Log.d(TAG, "Tried to stop listening when no MethodChannel had been initialized.")
             return
         }
-
         channel!!.setMethodCallHandler(null)
         channel = null
     }
 }
 
 class FlutterBroadcastsPlugin : FlutterPlugin {
+
     companion object {
         const val TAG: String = "FlutterBroadcastsPlugin"
     }
@@ -192,10 +198,7 @@ class FlutterBroadcastsPlugin : FlutterPlugin {
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         broadcastManager = BroadcastManager(flutterPluginBinding.applicationContext)
-        methodCallHandler = MethodCallHandlerImpl(
-                flutterPluginBinding.applicationContext,
-                broadcastManager!!
-        )
+        methodCallHandler = MethodCallHandlerImpl(flutterPluginBinding.applicationContext, broadcastManager!!)
         methodCallHandler!!.startListening(flutterPluginBinding.binaryMessenger)
     }
 
@@ -209,5 +212,7 @@ class FlutterBroadcastsPlugin : FlutterPlugin {
         broadcastManager?.stopAll()
         broadcastManager = null
     }
+
 }
+
 

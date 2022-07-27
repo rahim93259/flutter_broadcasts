@@ -13,7 +13,11 @@ Stream<BroadcastMessage> _listenForBroadcasts(MethodChannel channel) {
   void startListening() {
     channel.setMethodCallHandler((MethodCall call) async {
       if (call.method == 'receiveBroadcast') {
-        final message = BroadcastMessage._fromMap(call.arguments);
+        print("Callback recieved");
+        var map = jsonDecode(call.arguments.toString());
+        print("Map is $map");
+        final message = BroadcastMessage._fromMap(map);
+        print("Message is $message");
         controller?.add(message);
       }
     });
